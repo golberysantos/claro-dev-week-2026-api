@@ -1,4 +1,6 @@
-package me.dio.controller.dto;
+package me.dio.presentation.dto;
+
+import me.dio.domain.model.Feature;
 
 public record FeatureDto(Long id, String icon, String description) {
 
@@ -14,4 +16,3 @@ public record FeatureDto(Long id, String icon, String description) {
         return model;
     }
 }
-
