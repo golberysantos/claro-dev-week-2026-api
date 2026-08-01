@@ -1,66 +1,149 @@
-# Santander Dev Week 2023 Java API
+# Claro Dev Week 2026 API - Clean Architecture & DDD
 
-RESTful API da Santander Dev Week 2023 construída em Java 17 com Spring Boot 3.
+Esta é uma evolução da API RESTful desenvolvida durante o bootcamp **Claro Dev Week 2026** (com base na Santander Dev Week 2023), migrada para **Java 21**, **Spring Boot 3.3.4** e reestruturada sob os padrões de **Clean Architecture (Arquitetura Limpa)** e **Domain-Driven Design (DDD)**.
 
-## Principais Tecnologias
- - **Java 17**: Utilizaremos a versão LTS mais recente do Java para tirar vantagem das últimas inovações que essa linguagem robusta e amplamente utilizada oferece;
- - **Spring Boot 3**: Trabalharemos com a mais nova versão do Spring Boot, que maximiza a produtividade do desenvolvedor por meio de sua poderosa premissa de autoconfiguração;
- - **Spring Data JPA**: Exploraremos como essa ferramenta pode simplificar nossa camada de acesso aos dados, facilitando a integração com bancos de dados SQL;
- - **OpenAPI (Swagger)**: Vamos criar uma documentação de API eficaz e fácil de entender usando a OpenAPI (Swagger), perfeitamente alinhada com a alta produtividade que o Spring Boot oferece;
- - **Railway**: facilita o deploy e monitoramento de nossas soluções na nuvem, além de oferecer diversos bancos de dados como serviço e pipelines de CI/CD.
+---
 
-## [Link do Figma](https://www.figma.com/file/0ZsjwjsYlYd3timxqMWlbj/SANTANDER---Projeto-Web%2FMobile?type=design&node-id=1421%3A432&mode=design&t=6dPQuerScEQH0zAn-1)
+## 🏛️ Arquitetura do Projeto
 
-O Figma foi utilizado para a abstração do domínio desta API, sendo útil na análise e projeto da solução.
+O projeto foi dividido em quatro camadas isoladas que garantem o desacoplamento total das regras de negócio em relação a frameworks e bibliotecas externas:
 
-## Diagrama de Classes (Domínio da API)
+```
+                               ┌────────────────────────────────┐
+                               │          Presentation          │
+                               │  - Controllers & DTO Records   │
+                               └───────────────┬────────────────┘
+                                               │ (usa)
+                               ┌───────────────▼────────────────┐
+                               │           Application          │
+                               │  - Use Cases & Services (Puro) │
+                               └───────────────┬────────────────┘
+                                               │ (usa)
+                               ┌───────────────▼────────────────┐
+                               │             Domain             │
+                               │  - Entities & Ports (Puro)     │
+                               └───────────────▲────────────────┘
+                                               │ (implementa)
+                               ┌───────────────┴────────────────┐
+                               │         Infrastructure         │
+                               │  - JPA, Security, OpenFeign    │
+                               └────────────────────────────────┘
+```
+
+1. **Domain (Domínio):** Regras de negócio e contratos puros em Java (Entities, Value Objects e Repositories). Totalmente livre de anotações JPA ou importações de frameworks.
+2. **Application (Aplicação):** Implementação dos Casos de Uso (Services) puros em Java que orquestram os fluxos do negócio.
+3. **Presentation (Apresentação):** Controladores REST e DTOs (Java Records) utilizando as facilidades web do Spring Boot.
+4. **Infrastructure (Infraestrutura):** Adaptadores de persistência (JPA Entities, Repositórios Spring Data), segurança de rotas (Spring Security), chamadas HTTP externas (OpenFeign) e injeção de dependências do framework.
+
+---
+
+## 💡 Funcionalidades e Regras de Negócio Implementadas
+
+1. **Cadastro e Busca de Usuários:** Operações CRUD básicas estruturadas através de Casos de Uso.
+2. **Transferências via Pix:**
+   - Validação de saldo da conta de origem (incluindo limite especial).
+   - Validação de **limite diário Pix** configurado no domínio para prevenção de fraudes.
+3. **Histórico de Transações (Extrato):** Registro automático de depósitos, saques e transferências de entrada/saída associadas a cada conta.
+4. **Gerenciamento de Cartões:**
+   - Bloqueio e desbloqueio lógico do cartão de crédito.
+   - Ajuste de limite de crédito condicionado a regras de aprovação máxima e status do cartão no domínio.
+5. **Insights com Inteligência Artificial:** Integração via OpenFeign com serviço externo de conselhos/dicas financeiras personalizadas como fallback de IA.
+
+---
+
+## 🛠️ Principais Tecnologias
+- **Java 21 (LTS):** Uso de Java Records e novos recursos de JVM.
+- **Spring Boot 3.3.4:** Inicialização e orquestração de beans de infraestrutura.
+- **Spring Data JPA & PostgreSQL/H2:** Persistência relacional em banco de dados.
+- **Spring Security:** Autenticação básica de rotas via HTTP Basic Auth.
+- **Spring Cloud OpenFeign:** Clientes HTTP declarativos.
+- **OpenAPI / Swagger (Springdoc):** Documentação interativa dos endpoints.
+- **JUnit 5 & Mockito:** Suite completa de testes automatizados do core.
+
+---
+
+## 📊 Diagrama de Classes do Domínio (Mermaid)
 
 ```mermaid
 classDiagram
   class User {
+    -Long id
     -String name
     -Account account
-    -Feature[] features
     -Card card
-    -News[] news
+    -List~Feature~ features
+    -List~News~ news
   }
 
   class Account {
+    -Long id
     -String number
     -String agency
-    -Number balance
-    -Number limit
+    -BigDecimal balance
+    -BigDecimal limit
+    -BigDecimal pixDailyLimit
+    +deposit(BigDecimal amount)
+    +withdraw(BigDecimal amount)
+  }
+
+  class Card {
+    -Long id
+    -String number
+    -BigDecimal limit
+    -BigDecimal maxLimit
+    -boolean active
+    +block()
+    +unblock()
+    +updateLimit(BigDecimal newLimit)
   }
 
   class Feature {
+    -Long id
     -String icon
     -String description
   }
 
-  class Card {
-    -String number
-    -Number limit
+  class News {
+    -Long id
+    -String icon
+    -String description
   }
 
-  class News {
-    -String icon
+  class Transaction {
+    -Long id
+    -TransactionType type
+    -BigDecimal amount
+    -LocalDateTime timestamp
     -String description
   }
 
   User "1" *-- "1" Account
-  User "1" *-- "N" Feature
   User "1" *-- "1" Card
+  User "1" *-- "N" Feature
   User "1" *-- "N" News
+  Account "1" *-- "N" Transaction
 ```
 
-## Documentação da API (Swagger)
+---
 
-### [https://sdw-2023-prd.up.railway.app/swagger-ui.html](https://sdw-2023-prd.up.railway.app/swagger-ui.html)
+## ⚡ Como Rodar o Projeto Localmente
 
-Esta API ficará disponível no Railway por um período de tempo limitado, mas este é um código-fonte aberto. Portanto, sintam-se à vontade para cloná-lo, modificá-lo (já que é um bom projeto base para novos projetos) e executar localmente ou onde achar mais interessante! Só não esquece de marcar a gente quando divulgar a sua solução 🥰
+1. Clone este repositório.
+2. Certifique-se de possuir o **JDK 21** configurado no seu sistema.
+3. Para compilar e executar todos os testes unitários do core, rode:
+   ```bash
+   ./gradlew test
+   ```
+4. Para iniciar a API localmente:
+   ```bash
+   ./gradlew bootRun
+   ```
+5. Acesse o console do banco H2 em: `http://localhost:8080/h2-console`
+6. Acesse a documentação Swagger e teste os endpoints interativamente em: `http://localhost:8080/swagger-ui/index.html`
+   - *Autenticação Padrão:* Usuário `admin` e Senha `admin`.
 
-### IMPORTANTE
+---
 
-Aos interessados no desenvolvimento da tela inicial do App do Santander (Figma) em Angular, Android, iOS ou Flutter... Caso a URL produtiva não esteja mais disponível, deixamos um Backup no GitHub Pages, é só dar um GET lá 😘
-- URL de Produção: https://sdw-2023-prd.up.railway.app/users/1
-- Mock (Backup): https://digitalinnovationone.github.io/santander-dev-week-2023-api/mocks/find_one.json
+## 🎨 Links de Referência
+- **[Figma Original do Projeto](https://www.figma.com/file/0ZsjwjsYlYd3timxqMWlbj/SANTANDER---Projeto-Web%2FMobile?type=design&node-id=1421%3A432&mode=design&t=6dPQuerScEQH0zAn-1)** (Utilizado para abstração inicial do domínio).
+- **Mock de Backup da DIO:** https://digitalinnovationone.github.io/santander-dev-week-2023-api/mocks/find_one.json
