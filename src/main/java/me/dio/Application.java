@@ -6,6 +6,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.servers.Server;
 
+import org.springframework.cloud.openfeign.EnableFeignClients;
+
 /**
  * Initializes our RESTful API.
  *
@@ -16,6 +18,7 @@ import io.swagger.v3.oas.annotations.servers.Server;
  * </p>
  */
 
+@EnableFeignClients
 @OpenAPIDefinition(servers = {@Server(url = "/", description = "Default Server URL")})
 @SpringBootApplication
 public class Application {
