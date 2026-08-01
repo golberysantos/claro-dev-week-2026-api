@@ -64,6 +64,9 @@ class TransferFundsServiceTest {
         String destNum = "2222";
         BigDecimal amount = new BigDecimal("1500.00"); // Saldo disponível = 1000 + 200 = 1200
 
+        // Aumenta o limite diário Pix para não bater nessa validação antes do saldo
+        sourceUser.getAccount().setPixDailyLimit(new BigDecimal("2000.00"));
+
         when(userRepository.findByAccountNumber(sourceNum)).thenReturn(Optional.of(sourceUser));
         when(userRepository.findByAccountNumber(destNum)).thenReturn(Optional.of(destinationUser));
         when(userRepository.getDailyPixTotal(eq(1L), any(LocalDate.class))).thenReturn(BigDecimal.ZERO);
